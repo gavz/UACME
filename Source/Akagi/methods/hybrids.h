@@ -4,9 +4,9 @@
 *
 *  TITLE:       HYBRIDS.H
 *
-*  VERSION:     2.87
+*  VERSION:     3.00
 *
-*  DATE:        19 Jan 2018
+*  DATE:        25 Aug 2018
 *
 *  Prototypes and definitions for hybrid methods.
 *
@@ -28,13 +28,35 @@ typedef DWORD(WINAPI *pfnWaitForSingleObject)(
 typedef BOOL(WINAPI *pfnCloseHandle)(
     HANDLE hObject);
 
-typedef struct _ELOAD_PARAMETERS_SIREFEF {
-    WCHAR                   szVerb[MAX_PATH];
-    WCHAR                   szTargetApp[MAX_PATH * 2];
-    pfnShellExecuteExW      xShellExecuteExW;
-    pfnWaitForSingleObject  xWaitForSingleObject;
-    pfnCloseHandle          xCloseHandle;
-} ELOAD_PARAMETERS_SIREFEF, *PELOAD_PARAMETERS_SIREFEF;
+typedef HRESULT(WINAPI *pfnCoInitialize)(
+    LPVOID pvReserved);
+
+typedef HRESULT(WINAPI *pfnCoGetObject)(
+    LPCWSTR pszName,
+    BIND_OPTS *pBindOptions,
+    REFIID riid,
+    void **ppv);
+
+typedef HRESULT(WINAPI *pfnSHCreateItemFromParsingName)(
+    PCWSTR pszPath, 
+    IBindCtx *pbc, 
+    REFIID riid, 
+    void **ppv);
+
+typedef void(WINAPI *pfnCoUninitialize)(
+    VOID);
+
+typedef NTSTATUS (NTAPI *pfnRtlExitUserThread)(
+    _In_ NTSTATUS ExitStatus);
+
+typedef struct tagLOAD_PARAMETERS_SIREFEF {
+    WCHAR                   szVerb[10];
+    WCHAR                   szTargetApp[MAX_PATH + 1];
+    pfnShellExecuteExW      ShellExecuteExW;
+    pfnWaitForSingleObject  WaitForSingleObject;
+    pfnCloseHandle          CloseHandle;
+    pfnRtlExitUserThread    RtlExitUserThread;
+} LOAD_PARAMETERS_SIREFEF, *PLOAD_PARAMETERS_SIREFEF;
 
 BOOL ucmAvrfMethod(
     _In_ PVOID AvrfDll,
@@ -101,11 +123,11 @@ BOOL ucmJunctionMethod(
     _In_ PVOID ProxyDll,
     _In_ DWORD ProxyDllSize);
 
-BOOL ucmSXSMethodDccw(
+BOOL ucmSXSDccwMethod(
     _In_ PVOID ProxyDll,
     _In_ DWORD ProxyDllSize);
 
-BOOL ucmMethodCorProfiler(
+BOOL ucmCorProfilerMethod(
     _In_ PVOID ProxyDll,
     _In_ DWORD ProxyDllSize);
 
@@ -116,4 +138,15 @@ BOOL ucmDccwCOMMethod(
     _In_ LPWSTR lpszPayload);
 
 BOOL ucmBitlockerRCMethod(
+    _In_ LPWSTR lpszPayload);
+
+BOOL ucmCOMHandlersMethod2(
+    _In_ PVOID ProxyDll,
+    _In_ DWORD ProxyDllSize);
+
+BOOL ucmDateTimeStateWriterMethod(
+    _In_ PVOID ProxyDll,
+    _In_ DWORD ProxyDllSize);
+
+BOOL ucmAcCplAdminMethod(
     _In_ LPWSTR lpszPayload);

@@ -306,7 +306,7 @@ Keys (watch debug output with dbgview or similar for more info):
 33. Author: winscripting.blog
      * Type: Shell API 
      * Method: Registry key manipulation
-     * Target(s): \system32\fodhelper.exe
+     * Target(s): \system32\fodhelper.exe, \system32\computerdefaults.exe
      * Component(s): Attacker defined
      * Implementation: ucmMsSettingsDelegateExecuteMethod
      * Works from: Windows 10 TH1 (10240)
@@ -330,8 +330,8 @@ Keys (watch debug output with dbgview or similar for more info):
      * Implementation: ucmTokenModification
      * Works from: Windows 7 (7600)
      * AlwaysNotify compatible, see note
-     * Fixed in: unfixed :see_no_evil:
-        * How: -
+     * Fixed in: Windows 10 RS5 (17686)
+        * How: ntoskrnl.exe->SeTokenCanImpersonate additional access token check added
 36. Author: Thomas Vanhoutte
      * Type: Race condition
      * Method: NTFS reparse point & Dll Hijack
@@ -346,7 +346,7 @@ Keys (watch debug output with dbgview or similar for more info):
      * Method: SxS DotLocal, NTFS reparse point
      * Target(s): \system32\dccw.exe
      * Component(s): GdiPlus.dll
-     * Implementation: ucmSXSMethodDccw
+     * Implementation: ucmSXSDccwMethod
      * Works from: Windows 7 (7600)
      * Fixed in: unfixed :see_no_evil:
         * How: -
@@ -355,7 +355,7 @@ Keys (watch debug output with dbgview or similar for more info):
      * Method: APPINFO command line spoofing
      * Target(s): \system32\mmc.exe
      * Component(s): Attacker defined
-     * Implementation: ucmMethodHakril
+     * Implementation: ucmHakrilMethod
      * Works from: Windows 7 (7600)
      * Fixed in: unfixed :see_no_evil:
         * How: -
@@ -364,16 +364,16 @@ Keys (watch debug output with dbgview or similar for more info):
      * Method: .NET Code Profiler
      * Target(s): \system32\mmc.exe
      * Component(s): Attacker defined
-     * Implementation: ucmMethodCorProfiler
+     * Implementation: ucmCorProfilerMethod
      * Works from: Windows 7 (7600)
      * Fixed in: unfixed :see_no_evil:
         * How: -
 40. Author: Ruben Boonen
-     * Type: COM Handler hijack
+     * Type: COM Handler Hijack
      * Method: Registry key manipulation
      * Target(s): \system32\mmc.exe, \System32\recdisc.exe
      * Component(s): Attacker defined
-     * Implementation: ucmMethodCOMHandlers
+     * Implementation: ucmCOMHandlersMethod
      * Works from: Windows 7 (7600)
      * Fixed in: unfixed :see_no_evil:
         * How: -
@@ -409,7 +409,7 @@ Keys (watch debug output with dbgview or similar for more info):
      * Method: Environment variables expansion
      * Target(s): Multiple auto-elevated processes
      * Component(s): Various per target
-     * Implementation: ucmMethodVolatileEnv
+     * Implementation: ucmVolatileEnvMethod
      * Works from: Windows 7 (7600)
      * Fixed in: Windows 10 RS3 (16299)
         * How: Current user system directory variables ignored during process creation
@@ -418,7 +418,7 @@ Keys (watch debug output with dbgview or similar for more info):
      * Method: Registry key manipulation
      * Target(s): \system32\slui.exe
      * Component(s): Attacker defined
-     * Implementation: ucmMethodSluiHijack
+     * Implementation: ucmSluiHijackMethod
      * Works from: Windows 8.1 (9600)
      * Fixed in: unfixed :see_no_evil:
         * How: -
@@ -431,11 +431,56 @@ Keys (watch debug output with dbgview or similar for more info):
      * Works from: Windows 7 (7600)
      * Fixed in: Windows 10 RS4 (>16299)
         * How: Shell API update
+47. Author: clavoillotte & 3gstudent
+     * Type: COM Handler Hijack
+     * Method: Registry key manipulation
+     * Target(s): \system32\mmc.exe
+     * Component(s): Attacker defined
+     * Implementation: ucmCOMHandlersMethod2
+     * Works from: Windows 7 (7600)
+     * Fixed in: unfixed :see_no_evil:
+        * How: -
+48. Author: deroko
+     * Type: Elevated COM interface
+     * Method: ISPPLUAObject
+     * Target(s): Attacker defined
+     * Component(s): Attacker defined
+     * Implementation: ucmSPPLUAObjectMethod
+     * Works from: Windows 7 (7600)
+     * Fixed in: unfixed :see_no_evil:
+        * How: -
+49. Author: RinN
+     * Type: Elevated COM interface
+     * Method: ICreateNewLink
+     * Target(s): \system32\TpmInit.exe
+     * Component(s): WbemComn.dll
+     * Implementation: ucmCreateNewLinkMethod
+     * Works from: Windows 7 (7600)
+     * Fixed in: Windows 10 RS1 (14393) 
+        * How: Side effect of consent.exe COMAutoApprovalList introduction
+50. Author: Anonymous
+     * Type: Elevated COM interface
+     * Method: IDateTimeStateWrite, ISPPLUAObject
+     * Target(s): w32time service
+     * Component(s): w32time.dll
+     * Implementation: ucmDateTimeStateWriterMethod
+     * Works from: Windows 7 (7600)
+     * Fixed in: unfixed :see_no_evil:
+        * How: -
+51. Author: bytecode77 derivative
+     * Type: Elevated COM interface
+     * Method: IAccessibilityCplAdmin
+     * Target(s): \system32\rstrui.exe
+     * Component(s): Attacker defined
+     * Implementation: ucmAcCplAdminMethod
+     * Works from: Windows 7 (7600)
+     * Fixed in: Windows 10 RS4 (17134)
+        * How: Shell API update
 
 Note:
 * Method (6) unavailable in wow64 environment starting from Windows 8;
 * Method (11) implemented in x86-32 version;
-* Method (13) (19) (38) implemented only in x64 version;
+* Method (13) (19) (30) (38) (50) implemented only in x64 version;
 * Method (14) require process injection, wow64 unsupported, use x64 version of this tool;
 * Method (26) is still working, however it main advantage was UAC bypass on AlwaysNotify level. Since 15031 it is gone;
 * Method (30) require x64 because it abuses WOW64 subsystem feature;
@@ -460,6 +505,9 @@ Run examples:
 If you wondering why this still exist and work here is the explanation, an official Microsoft WHITEFLAG (including totally incompetent statements as bonus)
 https://blogs.msdn.microsoft.com/oldnewthing/20160816-00/?p=94105
 
+# Windows 10 support and testing policy
+* EOL'ed versions of Windows 10 are not supported and therefore not tested (at moment of writing EOL'ed Windows 10 versions are: TH1 (10240), TH2 (10586));
+* Insider builds are not supported as methods may be fixed there.
 
 # Protection
 * Account without administrative privileges.
@@ -474,7 +522,7 @@ https://blogs.msdn.microsoft.com/oldnewthing/20160816-00/?p=94105
 
 # Build 
 
-* UACMe comes with full source code, written in C;
+* UACMe comes with full source code, written in C with some parts written in C#;
 * In order to build from source you need Microsoft Visual Studio 2013/2015 U2 and later versions.
 
 # References
@@ -498,11 +546,10 @@ https://blogs.msdn.microsoft.com/oldnewthing/20160816-00/?p=94105
    2. https://tyranidslair.blogspot.ru/2017/05/reading-your-way-around-uac-part-2.html
    3. https://tyranidslair.blogspot.ru/2017/05/reading-your-way-around-uac-part-3.html 
 * Research on CMSTP.exe, https://msitpros.com/?p=3960
+* UAC bypass via elevated .NET applications, https://offsec.provadys.com/UAC-bypass-dotnet.html
 
 # Authors
 
 (c) 2014 - 2018 UACMe Project
 
-# 3rd party components usage
-
-MinHook - The Minimalistic x86/x64 API Hooking Library for Windows, https://github.com/TsudaKageyu/minhook
+[![HitCount](http://hits.dwyl.io/hfiref0x/uacme.svg)](http://hits.dwyl.io/hfiref0x/uacme)

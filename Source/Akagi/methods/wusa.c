@@ -1,12 +1,12 @@
 /*******************************************************************************
 *
-*  (C) COPYRIGHT AUTHORS, 2017
+*  (C) COPYRIGHT AUTHORS, 2017 - 2018
 *
 *  TITLE:       WUSA.C
 *
-*  VERSION:     2.75
+*  VERSION:     3.00
 *
-*  DATE:        30 June 2017
+*  DATE:        31 Aug 2018
 *
 *  Windows Update Standalone Installer (WUSA) based routines.
 *
@@ -244,7 +244,6 @@ DWORD ucmxDirectoryWatchdogThread(
         //
         // Open directory for change notification.
         //
-        usWatchDirectory.Buffer = NULL;
         RtlInitUnicodeString(&usWatchDirectory, szBuffer);
         InitializeObjectAttributes(&ObjectAttributes, &usWatchDirectory, OBJ_CASE_INSENSITIVE, 0, NULL);
 
@@ -304,7 +303,6 @@ DWORD ucmxDirectoryWatchdogThread(
                         //
                         // Open new directory to set reparse point.
                         //
-                        usReparseDirectory.Buffer = NULL;
                         RtlInitUnicodeString(&usReparseDirectory, CapturedDirectoryName);
                         InitializeObjectAttributes(&ObjectAttributes, &usReparseDirectory, OBJ_CASE_INSENSITIVE, NULL, NULL);
                         status = NtCreateFile(&hReparseDirectory, 
@@ -398,24 +396,8 @@ BOOL ucmWusaExtractViaJunction(
 )
 {
     BOOL bCond = FALSE;
-
-#ifndef _DEBUG
-    HANDLE                      hExplorer = NULL;
-#endif
-
     HANDLE hWatchdogThread, hWusaThread;
     DWORD ti;
-
-    //
-    // Query explorer.exe handle and use it to suspend process.
-    // Thus blocking unwanted user changes during work.
-    //
-#ifndef _DEBUG
-    hExplorer = supGetExplorerHandle();
-    if (hExplorer != NULL) {
-        NtSuspendProcess(hExplorer);
-    }
-#endif
 
     do {
 
@@ -443,13 +425,6 @@ BOOL ucmWusaExtractViaJunction(
         CloseHandle(hWatchdogThread);
 
     } while (bCond);
-
-#ifndef _DEBUG
-    if (hExplorer != NULL) {
-        NtResumeProcess(hExplorer);
-        NtClose(hExplorer);
-    }
-#endif
 
     return (g_ThreadFinished == 1);
 }

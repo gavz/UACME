@@ -4,9 +4,9 @@
 *
 *  TITLE:       METHODS.H
 *
-*  VERSION:     2.87
+*  VERSION:     3.00
 *
-*  DATE:        19 Jan 2018
+*  DATE:        27 Aug 2018
 *
 *  Prototypes and definitions for UAC bypass methods table.
 *
@@ -66,6 +66,11 @@ typedef enum _UCM_METHOD {
     UacMethodVolatileEnv,   //+
     UacMethodSluiHijack,    //+
     UacMethodBitlockerRC,   //+
+    UacMethodCOMHandlers2,  //+
+    UacMethodSPPLUAObject,  //+
+    UacMethodCreateNewLink, //+
+    UacMethodDateTimeWriter,//+
+    UacMethodAcCplAdmin,    //+
     UacMethodMax
 } UCM_METHOD;
 
@@ -76,47 +81,64 @@ typedef struct _UCM_METHOD_AVAILABILITY {
     ULONG MinimumExpectedFixedWindowsBuild;        //if the current build equal or greater this value this method is not working here or fixed
 } UCM_METHOD_AVAILABILITY;
 
-typedef BOOL(CALLBACK *PUCM_API_ROUTINE)(
-    UCM_METHOD Method,
-    _Inout_opt_ PVOID ExtraContext,
-    _In_opt_ PVOID PayloadCode,
-    _In_opt_ ULONG PayloadSize
+typedef enum _UCM_METHOD_EXECUTE_TYPE {
+    ucmExTypeDefault = 0,
+    ucmExTypeRegSymlink = 1,
+    ucmExTypeIndirectModification = 2,
+    ucmExTypeDisableWDRuntime = 3,
+    ucmExTypeMax
+} UCM_METHOD_EXECUTE_TYPE;
+
+typedef struct tagUCM_PARAMS_BLOCK {
+    UCM_METHOD Method;
+    PVOID PayloadCode;
+    ULONG PayloadSize;
+} UCM_PARAMS_BLOCK, *PUCM_PARAMS_BLOCK;
+
+typedef ULONG(CALLBACK *PUCM_EXTRA_ROUTINE)(
+    PVOID Parameter
     );
 
-#define UCM_API(n) BOOL CALLBACK n(     \
-    _In_ UCM_METHOD Method,             \
-    _Inout_opt_ PVOID ExtraContext,     \
-    _In_opt_ PVOID PayloadCode,         \
-    _In_opt_ ULONG PayloadSize)
+typedef ULONG(CALLBACK *PUCM_API_ROUTINE)(
+    _In_ PUCM_PARAMS_BLOCK Parameter
+    );
+
+typedef struct _UCM_EXTRA_CONTEXT {
+    PUCM_EXTRA_ROUTINE Routine;
+    PVOID Parameter;
+} UCM_EXTRA_CONTEXT, *PUCM_EXTRA_CONTEXT;
+                  
+#define UCM_API(n) ULONG CALLBACK n(     \
+    _In_ PUCM_PARAMS_BLOCK Parameter)  
 
 typedef struct _UCM_API_DISPATCH_ENTRY {
     PUCM_API_ROUTINE Routine;               //method to execute
-    PVOID ExtraContext;                     //unused, future use
+    PUCM_EXTRA_CONTEXT ExtraContext;        //extra context to be executed depending on method
     UCM_METHOD_AVAILABILITY Availability;   //min and max supported Windows builds
     ULONG PayloadResourceId;                //which payload dll must be used
-    BOOL Win32OrWow64Required;              
-    BOOL DisallowWow64;                     
+    BOOL Win32OrWow64Required;
+    BOOL DisallowWow64;
     BOOL SetParametersInRegistry;           //need shared parameters to be set in the registry
 } UCM_API_DISPATCH_ENTRY, *PUCM_API_DISPATCH_ENTRY;
 
+#include "elvint.h"
 #include "api0cradle.h"
 #include "apphelp.h"
 #include "b33f.h"
 #include "bytecode77.h"
 #include "carberp.h"
-#include "cdproxy.h"
 #include "comet.h"
-#include "comfileop.h"
+#include "comsup.h"
+#include "deroko.h"
 #include "enigma0x3.h"
 #include "explife.h"
-#include "fwcpllua.h"
 #include "gootkit.h"
 #include "hakril.h"
 #include "hybrids.h"
+#include "rinn.h"
 #include "pitou.h"
 #include "sandworm.h"
 #include "simda.h"
-#include "sirefef.h"
 #include "wusa.h"
 #include "tests\test.h"
 #include "tyranid.h"

